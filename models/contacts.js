@@ -46,9 +46,8 @@ const removeContact = async (contactId) => {
       return contacts[contactIdx]
     }
 
-    else {
-      return null
-    }
+    return null
+
     
 
   } catch (error) {
