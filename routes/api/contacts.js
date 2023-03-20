@@ -1,13 +1,14 @@
 const express = require('express');
 const Joi = require('joi');
-const { listContacts, getContactById, removeContact, addContact, updateContact } = require('../../models/contacts');
+const { listContacts, getContactById, removeContact, addContact, updateContact, updateStatusContact } = require('../../models/contacts');
 
 const router = express.Router()
 
 const contactSchema = Joi.object({
     name: Joi.required(), 
     email: Joi.required(), 
-    phone: Joi.required()
+    phone: Joi.required(),
+    favorite: Joi.bool(),
   })
 
 router.get('/', async (req, res, next) => {
@@ -122,6 +123,30 @@ router.put('/:id', async (req, res, next) => {
   catch (error) {
     
   }
+})
+
+router.patch('/:id/favorite', async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const body = req.body
+
+    if (!Object.keys(body).includes('favorite')) {
+      res.status(400).json({"message": "missing field favorite"})
+    }
+
+    const result = await updateStatusContact(id, body)
+
+    if (result) {
+      res.status(200).json({result})
+    }
+    else {
+      res.status(404).json({"message": "Not found"})
+    }
+  } 
+  catch (error) {
+    
+  }
+
 })
 
 module.exports = router
