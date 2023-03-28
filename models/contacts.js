@@ -1,14 +1,28 @@
-const fs = require('fs/promises')
-const path = require('path')
-const { v4: uuidv4 } = require('uuid');
+const { Schema, model} = require('mongoose');
 
-const contactsPath = path.resolve(__dirname, 'contacts.json')
+const contactSchema = Schema({
+    name: {
+      type: String,
+      required: [true, 'Set name for contact'],
+    },
+    email: {
+      type: String,
+    },
+    phone: {
+      type: String,
+    },
+    favorite: {
+      type: Boolean,
+      default: false,
+    },
+});
+
+const Contact = model("contact", contactSchema);
 
 const listContacts = async () => {
 
   try {
-    const data = await fs.readFile(contactsPath)
-    const contacts = JSON.parse(data)
+    const contacts = await Contact.find({});
 
     return contacts    
   } 
@@ -20,8 +34,8 @@ const listContacts = async () => {
 const getContactById = async (contactId) => {
 
   try {
-    const contacts = await listContacts();
-    const contact = contacts.find(i => i.id === contactId)
+    const contact = await Contact.findById(contactId);
+
     if(!contact){
         return null
     }
@@ -36,19 +50,13 @@ const getContactById = async (contactId) => {
 const removeContact = async (contactId) => {
 
   try {
-    const contacts = await listContacts();
-    const contactIdx = contacts.findIndex(i => i.id === contactId)
-
-    if(contactIdx >= 0) {
-      const newContacts = contacts.filter(i => i.id !== contactId)
-
-      await fs.writeFile(contactsPath, JSON.stringify(newContacts))
-      return contacts[contactIdx]
+    const result = Contact.findByIdAndRemove(contactId)
+    
+    if (!result) {
+      return null
     }
 
-    return null
-
-    
+    return result    
 
   } catch (error) {
     return error.message      
@@ -59,16 +67,7 @@ const removeContact = async (contactId) => {
 const addContact = async (body) => {
 
   try {
-    const contacts = await listContacts();
-    const contact = {
-        "id": uuidv4(),
-        "name": body.name,
-        "email": body.email,
-        "phone": body.phone
-    }
-    contacts.push(contact)
-
-    await fs.writeFile(contactsPath, JSON.stringify(contacts))
+    const contact = await Contact.create(body)
     return contact
     
   } catch (error) {
@@ -78,29 +77,32 @@ const addContact = async (body) => {
 
 const updateContact = async (contactId, body) => {
   try {
-    const contacts = await listContacts();
-    const contactIdx = contacts.findIndex(i => i.id === contactId)
+    const result = Contact.findByIdAndUpdate(contactId, body, {new: true})
 
-    if (contactIdx === -1){
-      return null;
+    if (!result) {
+      return null
     }
 
-    const contact = contacts[contactIdx]
-
-    const { name, email, phone } = body
-
-    if (name) {contact.name = name}
-    if (email) {contact.email = email}
-    if (phone) {contact.phone = phone}
-
-    contacts[contactIdx] = contact;
-
-    await fs.writeFile(contactsPath, JSON.stringify(contacts))
-    return contacts[contactIdx]
+    return result
     
   } catch (error) {
     return error.message 
   }
+}
+
+const updateStatusContact = async (contactId, body) => {
+  try {
+    const result = Contact.findByIdAndUpdate(contactId, body, {new: true})
+
+    if (!result) {
+      return null
+    }
+
+    return result
+  } catch (error) {
+    return error.message 
+  }
+
 }
 
 module.exports = {
@@ -109,4 +111,5 @@ module.exports = {
   removeContact,
   addContact,
   updateContact,
+  updateStatusContact,
 }
