@@ -1,17 +1,12 @@
 const express = require('express');
-const Joi = require('joi');
-const { listContacts, getContactById, removeContact, addContact, updateContact, updateStatusContact } = require('../../models/contacts');
+const { joiSchema } = require('../../models/contacts');
+const { listContacts, getContactById, removeContact, addContact, updateContact, updateStatusContact } = require('../../controllers/contacts');
+const { auth } = require('../../middlewares/auth')
+
 
 const router = express.Router()
 
-const contactSchema = Joi.object({
-    name: Joi.required(), 
-    email: Joi.required(), 
-    phone: Joi.required(),
-    favorite: Joi.bool(),
-  })
-
-router.get('/', async (req, res, next) => {
+router.get('/', auth, async (req, res) => {
   try {
     const contacts = await listContacts()
     res.status(200).json({
@@ -26,7 +21,7 @@ router.get('/', async (req, res, next) => {
 
 })
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', auth, async (req, res, next) => {
 
   try {
     const { id } = req.params
@@ -50,11 +45,11 @@ router.get('/:id', async (req, res, next) => {
   
 })
 
-router.post('/', async (req, res, next) => {
+router.post('/', auth, async (req, res, next) => {
 
   try {
     const body = req.body
-    const {error} = contactSchema.validate(body)
+    const {error} = joiSchema.validate(body)
 
     if (error) {
       error.status = 400;
@@ -77,7 +72,7 @@ router.post('/', async (req, res, next) => {
 
 })
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', auth, async (req, res, next) => {
 
   try {
     const { id } = req.params
@@ -100,7 +95,7 @@ router.delete('/:id', async (req, res, next) => {
 
 })
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', auth, async (req, res, next) => {
   
   try {
     const { id } = req.params
@@ -125,7 +120,7 @@ router.put('/:id', async (req, res, next) => {
   }
 })
 
-router.patch('/:id/favorite', async (req, res, next) => {
+router.patch('/:id/favorite', auth, async (req, res, next) => {
   try {
     const { id } = req.params
     const body = req.body
