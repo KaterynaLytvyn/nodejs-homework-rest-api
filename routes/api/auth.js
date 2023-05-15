@@ -9,6 +9,7 @@ const { upload } = require('../../middlewares/upload')
 const gravatar = require('gravatar')
 const path = require('path')
 const fs = require('fs/promises')
+const jimp = require('jimp')
 
 dotenv.config();
 const { SECRET_KEY } = process.env
@@ -137,6 +138,15 @@ router.patch('/avatars', auth, upload.single("avatar"), async (req, res) => {
   const { path: tempUpload, originalname} = req.file;
   const { _id: id } = req.user
   const avatarImageName = `${id}_${originalname}`
+
+  jimp.read(tempUpload)
+  .then((image) => {
+    image.resize(250, 250).write(tempUpload)
+  })
+  .catch((err) => {
+    console.log(err)
+  });
+
  
   try {
     const resultUpload = path.join(avatarsDir,avatarImageName)
