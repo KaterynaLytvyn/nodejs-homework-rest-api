@@ -5,9 +5,15 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const dotenv = require('dotenv')
 const { auth } = require('../../middlewares/auth')
+const { upload } = require('../../middlewares/upload')
+const gravatar = require('gravatar')
+const path = require('path')
+const fs = require('fs/promises')
+const jimp = require('jimp')
 
 dotenv.config();
 const { SECRET_KEY } = process.env
+const avatarsDir = path.join(__dirname,"../../", "public", "avatars");
 
 const router = express.Router();
 
@@ -32,13 +38,15 @@ router.post('/register', async (req, res) => {
         }
 
         const hashPassword = bcrypt.hashSync(password, bcrypt.genSaltSync(10))
+        const avatarURL = gravatar.url(email)
     
-        const result = await User.create({subscription, email, password: hashPassword})
+        const result = await User.create({subscription, email, password: hashPassword, avatarURL})
 
         res.status(201).json({
             "user": {
                 "email": result.email,
-                "subscription" : result.subscription
+                "subscription" : result.subscription,
+                "avatarURL": avatarURL
             }
         });
         
@@ -123,6 +131,35 @@ router.post('/logout', auth, async (req, res) => {
 
   await User.findByIdAndUpdate(user.id, {"token": null})
   res.status(204).json()
+
+})
+
+router.patch('/avatars', auth, upload.single("avatar"), async (req, res) => {
+  const { path: tempUpload, originalname} = req.file;
+  const { _id: id } = req.user
+  const avatarImageName = `${id}_${originalname}`
+
+  jimp.read(tempUpload)
+  .then((image) => {
+    image.resize(250, 250).write(tempUpload)
+  })
+  .catch((err) => {
+    console.log(err)
+  });
+
+ 
+  try {
+    const resultUpload = path.join(avatarsDir,avatarImageName)
+    await fs.rename(tempUpload, resultUpload)
+
+    const avatarURL = path.join("avatars", avatarImageName)
+    await User.findByIdAndUpdate(req.user._id, {avatarURL})
+
+    res.json({avatarURL})
+  } 
+  catch (error) {
+    await fs.unlink(tempUpload)
+  }
 
 })
 

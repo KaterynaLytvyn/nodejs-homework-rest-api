@@ -10,8 +10,6 @@ const auth = async(req, res, next) => {
     const {authorization=""} = req.headers;
     const [bearer, token] = authorization.split(" ");
 
-    console.log('auth middleware - token from header:', token)
-
     if (bearer !== "Bearer") {
         return res.status(401).json({
             "message": "Not authorized"
@@ -20,9 +18,7 @@ const auth = async(req, res, next) => {
 
     try {
         const {id} = jwt.verify(token, SECRET_KEY)
-        console.log('auth middleware - received id from token:', id)
         const user = await User.findById(id)
-        console.log('auth middleware - user by id:', user)
 
         if (!user || user.token !== token) {
             return res.status(401).json({
