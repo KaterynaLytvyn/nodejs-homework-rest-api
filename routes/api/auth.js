@@ -10,6 +10,8 @@ const gravatar = require('gravatar')
 const path = require('path')
 const fs = require('fs/promises')
 const jimp = require('jimp')
+const {v4: uuidv4} = require('uuid')
+const { sendEmail } = require('../../helpers/sendEmail')
 
 dotenv.config();
 const { SECRET_KEY } = process.env
@@ -27,7 +29,7 @@ router.post('/register', async (req, res) => {
         error: error.details,
       })
     }
-
+    
     try {
         const user = await User.findOne({email})
         
@@ -39,14 +41,24 @@ router.post('/register', async (req, res) => {
 
         const hashPassword = bcrypt.hashSync(password, bcrypt.genSaltSync(10))
         const avatarURL = gravatar.url(email)
+        const verificationToken = uuidv4()
     
-        const result = await User.create({subscription, email, password: hashPassword, avatarURL})
+        const result = await User.create({subscription, email, password: hashPassword, avatarURL, verificationToken})
+
+        const mail = {
+          to: email,
+          subject: "Confirm registration",
+          html: `<p>To complete your registration, please confirm your email address: <a target="_blank" href="http://localhost:3000/api/users/verify/${verificationToken}">confirm email<a></p>`
+        }
+
+        await sendEmail(mail)
 
         res.status(201).json({
             "user": {
                 "email": result.email,
                 "subscription" : result.subscription,
-                "avatarURL": avatarURL
+                "avatarURL": avatarURL,
+                "verificationToken": verificationToken
             }
         });
         
@@ -84,6 +96,12 @@ router.post('/login', async (req, res) => {
           return res.status(401).json({
               "message": "Email or password is wrong"
             });
+      }
+
+      if(!user.verify) {
+        return res.status(401).json({
+          "message": "Email is not verified"
+        });
       }
 
       const payload = {
@@ -160,6 +178,56 @@ router.patch('/avatars', auth, upload.single("avatar"), async (req, res) => {
   catch (error) {
     await fs.unlink(tempUpload)
   }
+
+})
+
+router.get('/verify/:verificationToken', async (req, res) => {
+
+  const { verificationToken } = req.params;
+
+  const user = await User.findOne({verificationToken})
+
+  if(!user || user.verify) {
+    return res.status(404).json({
+      "message": "Not Found"
+    });  
+  }
+
+  await User.findByIdAndUpdate(user._id, {verificationToken: null, verify: true})
+
+  return res.status(200).json({
+    "message": "Verification successful"
+  }); 
+
+})
+
+router.post('/verify', async (req, res) => {
+
+  const { email } = req.body
+
+  if(!email){
+    return res.status(400).json({"message": "missing required field email"})
+  }
+
+  const user = await User.findOne({email})
+
+  if(!user){
+    return res.status(400).json({"message": "user with this email is not found"})
+  }
+
+  if(user.verify){
+    return res.status(400).json({"message": "Verification has already been passed"})
+  }
+
+  const mail = {
+    to: user.email,
+    subject: "Confirm registration",
+    html: `<p>To complete your registration, please confirm your email address: <a target="_blank" href="http://localhost:3000/api/users/verify/${user.verificationToken}">confirm email<a></p>`
+  }
+
+  await sendEmail(mail)
+
+  return res.status(200).json({"message": "Verification email sent"})
 
 })
 
